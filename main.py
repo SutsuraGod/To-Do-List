@@ -2,7 +2,10 @@ import sys
 import sqlite3
 from mainWindow_ui import Ui_MainWindow as mainWindowUi
 from categoriesWindow_ui import Ui_MainWindow as categoriesWindowUi
-from PyQt6.QtWidgets import QMainWindow, QApplication, QTableWidgetItem, QMenu
+from taskWidget_ui import Ui_Form as taskWidgetUi
+from editTask_ui import Ui_MainWindow as editTaskUi
+from PyQt6.QtWidgets import QMainWindow, QApplication, QTableWidgetItem, QMenu, QWidget, QSplitter, QVBoxLayout
+from PyQt6.QtCore import Qt
 
 
 class MyWidget(QMainWindow, mainWindowUi):
@@ -11,6 +14,8 @@ class MyWidget(QMainWindow, mainWindowUi):
         self.setupUi(self)
         self.setFixedSize(575, 688)
         self.con = sqlite3.connect('to_do_list.sqlite')
+        self.container_layout = 0
+        self.taskWidgets = []
         cur = self.con.cursor()
 
         self.categoriesInTasks.addItems(['Все'] + [i[0] for i in cur.execute('SELECT name FROM categories').fetchall()])
@@ -36,13 +41,14 @@ class MyWidget(QMainWindow, mainWindowUi):
             cur_category = self.categoriesInTasks.currentIndex()
 
             query = '''SELECT tasks.id, tasks.name, tasks.date,
-                    IFNULL(tasks.picture, "Нет изображения"), categories.name FROM tasks
+                    IFNULL(tasks.picture, "Нет изображения"), categories.name, tasks.completed FROM tasks
                     LEFT JOIN categories ON categories.id = tasks.category'''
+            order = ''' ORDER BY tasks.completed'''
             
             if cur_category == 0:
-                result = cur.execute(query).fetchall()
+                result = cur.execute(query + order).fetchall()
             else:
-                result = cur.execute(f'''{query} WHERE categories.id = {cur_category}''').fetchall()
+                result = cur.execute(f'''{query} WHERE categories.id = {cur_category}{order}''').fetchall()
             
             self.update_tasks(result)
         else:
@@ -60,15 +66,26 @@ class MyWidget(QMainWindow, mainWindowUi):
             self.update_events(result)
 
     def update_tasks(self, data):
-        self.tasksTable.setRowCount(len(data))
-        self.tasksTable.setColumnCount(len(data[0]))
-        self.tasksTable.setHorizontalHeaderLabels(['ИД', 'Задача', 'Дата', 'Путь к картинке', 'Категория'])
+        if not self.container_layout:
+            self.container_layout = QVBoxLayout(self.tasksContainer)
+        else:
+            self.clear_tasksContainer()
+        self.taskWidgets = []
+        for i in range(len(data)):
+            if data[i][-1] == 1:
+                completed = 1
+            else:
+                completed = 0
+            widget = TaskForm(f'{data[i][1]}', completed)
+            self.container_layout.addWidget(widget)
+            self.taskWidgets.append(widget)
+        self.container_layout.addWidget(QSplitter(Qt.Orientation.Vertical))
 
-        for i, row in enumerate(data):
-            for j, col in enumerate(row):
-                self.tasksTable.setItem(i, j, QTableWidgetItem(str(col)))
-
-        self.tasksTable.resizeColumnsToContents()
+    def clear_tasksContainer(self):
+        for i in reversed(range(self.container_layout.count())):
+            widget = self.container_layout.itemAt(i).widget()
+            if widget is not None:
+                self.container_layout.removeWidget(widget)
 
     def update_events(self, data):
         self.eventsTable.setRowCount(len(data))
@@ -134,6 +151,48 @@ class Categories(QMainWindow, categoriesWindowUi):
 
     def edit_category(self):
         pass
+
+
+class TaskForm(QWidget, taskWidgetUi):
+    def __init__(self, text, completed):
+        super().__init__()
+        self.setupUi(self)
+        self.task.setText(text)
+        if completed == 1:
+            self.task.setStyleSheet("QCheckBox { text-decoration: line-through; }")
+            self.task.setChecked(True)
+
+        self.moreInfoButton.clicked.connect(self.edit_task)
+        self.task.stateChanged.connect(self.set_style_sheet)
+
+    def set_style_sheet(self):
+        with sqlite3.connect('to_do_list.sqlite') as con:
+            cur = con.cursor()
+            if self.task.isChecked():
+                query = f'''UPDATE tasks
+                            SET completed = 1
+                            WHERE name = "{self.task.text()}"'''
+                cur.execute(query)
+                self.task.setStyleSheet("QCheckBox { text-decoration: line-through; }")
+            else:
+                query = f'''UPDATE tasks
+                            SET completed = 0
+                            WHERE name = "{self.task.text()}"'''
+                cur.execute(query)
+                self.task.setStyleSheet("QCheckBox { text-decoration: none; }")
+
+    def edit_task(self):
+        self.edit_task_widget = TaskWidget(self)
+        self.edit_task_widget.show()
+
+    def get_text(self):
+        self.task.text()
+
+
+class TaskWidget(QMainWindow, editTaskUi):
+    def __init__(self, parent=None):
+        super().__init__()
+        self.setupUi(self)
 
 
 def main():

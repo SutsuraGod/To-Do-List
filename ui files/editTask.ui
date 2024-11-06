@@ -24,17 +24,17 @@
      </rect>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton">
+   <widget class="QPushButton" name="deleteTaskButton">
     <property name="geometry">
      <rect>
-      <x>10</x>
+      <x>210</x>
       <y>460</y>
-      <width>411</width>
+      <width>211</width>
       <height>23</height>
      </rect>
     </property>
     <property name="text">
-     <string/>
+     <string>Удалить</string>
     </property>
    </widget>
    <widget class="QPushButton" name="picture">
@@ -55,16 +55,6 @@
      <rect>
       <x>69</x>
       <y>173</y>
-      <width>351</width>
-      <height>20</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QDateEdit" name="date">
-    <property name="geometry">
-     <rect>
-      <x>69</x>
-      <y>147</y>
       <width>351</width>
       <height>20</height>
      </rect>
@@ -133,6 +123,29 @@
     </property>
     <property name="text">
      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="date">
+    <property name="geometry">
+     <rect>
+      <x>70</x>
+      <y>150</y>
+      <width>351</width>
+      <height>20</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="editTaskButton">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>460</y>
+      <width>201</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Изменить</string>
     </property>
    </widget>
   </widget>
