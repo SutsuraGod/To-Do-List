@@ -1,11 +1,16 @@
 import sys
 import sqlite3
+import re
+
 from mainWindow_ui import Ui_MainWindow as mainWindowUi
 from categoriesWindow_ui import Ui_MainWindow as categoriesWindowUi
 from taskWidget_ui import Ui_Form as taskWidgetUi
 from editTask_ui import Ui_MainWindow as editTaskUi
+
 from PyQt6.QtWidgets import QMainWindow, QApplication, QTableWidgetItem, QMenu, QWidget, QSplitter, QVBoxLayout
+from PyQt6.QtWidgets import QFileDialog, QMessageBox
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QPixmap, QImage
 
 
 class MyWidget(QMainWindow, mainWindowUi):
@@ -16,19 +21,15 @@ class MyWidget(QMainWindow, mainWindowUi):
         self.con = sqlite3.connect('to_do_list.sqlite')
         self.container_layout = 0
         self.taskWidgets = []
-        cur = self.con.cursor()
-
-        self.categoriesInTasks.addItems(['Все'] + [i[0] for i in cur.execute('SELECT name FROM categories').fetchall()])
-        self.filterTasksButton.clicked.connect(self.to_filter)
-
-        self.categoriesInEvents.addItems(['Все'] + [i[0] for i in cur.execute('SELECT name FROM categories').fetchall()])
-        self.filterEventsButton.clicked.connect(self.to_filter)
+        self.update_combobox()
 
         self.tab_changed(0)
         self.tabWidget.currentChanged.connect(self.tab_changed)
 
         self.editCategoryButtonInTasks.clicked.connect(self.edit_categories)
         self.editCategoryButtonInEvents.clicked.connect(self.edit_categories)
+
+        self.addTaskButton.clicked.connect(self.add_task)
 
     def tab_changed(self, index):
         self.current_tab = index
@@ -50,7 +51,7 @@ class MyWidget(QMainWindow, mainWindowUi):
             else:
                 result = cur.execute(f'''{query} WHERE categories.id = {cur_category}{order}''').fetchall()
             
-            self.update_tasks(result)
+            self.update_tasks()
         else:
             cur_category = self.categoriesInEvents.currentIndex()
 
@@ -65,18 +66,19 @@ class MyWidget(QMainWindow, mainWindowUi):
 
             self.update_events(result)
 
-    def update_tasks(self, data):
+    def update_tasks(self):
+        cur = self.con.cursor()
+        query = '''SELECT * FROM tasks'''
+        result = cur.execute(query).fetchall()
+
         if not self.container_layout:
             self.container_layout = QVBoxLayout(self.tasksContainer)
         else:
             self.clear_tasksContainer()
+
         self.taskWidgets = []
-        for i in range(len(data)):
-            if data[i][-1] == 1:
-                completed = 1
-            else:
-                completed = 0
-            widget = TaskForm(f'{data[i][1]}', completed)
+        for i in range(len(result)):
+            widget = TaskForm(f'{result[i][1]}',result[i], self)
             self.container_layout.addWidget(widget)
             self.taskWidgets.append(widget)
         self.container_layout.addWidget(QSplitter(Qt.Orientation.Vertical))
@@ -103,13 +105,8 @@ class MyWidget(QMainWindow, mainWindowUi):
         self.edit_categories_widget.show()
 
     def add_task(self):
-        pass
-
-    def edit_task(self):
-        pass
-
-    def delete_task(self):
-        pass
+        self.add_task_widget = TaskWidget(self)
+        self.add_task_widget.show()
 
     def add_event(self):
         pass
@@ -119,6 +116,15 @@ class MyWidget(QMainWindow, mainWindowUi):
 
     def delete_event(self):
         pass
+
+
+    def update_combobox(self):
+        cur = self.con.cursor()
+        self.categoriesInTasks.addItems(['Все'] + [i[0] for i in cur.execute('SELECT name FROM categories').fetchall()])
+        self.filterTasksButton.clicked.connect(self.to_filter)
+
+        self.categoriesInEvents.addItems(['Все'] + [i[0] for i in cur.execute('SELECT name FROM categories').fetchall()])
+        self.filterEventsButton.clicked.connect(self.to_filter)
 
 
 class Categories(QMainWindow, categoriesWindowUi):
@@ -154,11 +160,13 @@ class Categories(QMainWindow, categoriesWindowUi):
 
 
 class TaskForm(QWidget, taskWidgetUi):
-    def __init__(self, text, completed):
-        super().__init__()
+    def __init__(self, text, data, parent=None):
+        super().__init__(parent)
+        self.parent = parent
         self.setupUi(self)
         self.task.setText(text)
-        if completed == 1:
+        self.data = data
+        if self.data[-1] == 1:
             self.task.setStyleSheet("QCheckBox { text-decoration: line-through; }")
             self.task.setChecked(True)
 
@@ -182,7 +190,7 @@ class TaskForm(QWidget, taskWidgetUi):
                 self.task.setStyleSheet("QCheckBox { text-decoration: none; }")
 
     def edit_task(self):
-        self.edit_task_widget = TaskWidget(self)
+        self.edit_task_widget = TaskWidget(self.parent, self.data)
         self.edit_task_widget.show()
 
     def get_text(self):
@@ -190,9 +198,116 @@ class TaskForm(QWidget, taskWidgetUi):
 
 
 class TaskWidget(QMainWindow, editTaskUi):
-    def __init__(self, parent=None):
-        super().__init__()
+    def __init__(self,  parent=None, data=None):
+        super().__init__(parent)
         self.setupUi(self)
+        self.setFixedSize(429, 505)
+        self.way_to_picture = None
+
+        with sqlite3.connect('to_do_list.sqlite') as con:
+            cur = con.cursor()
+            self.category.addItems([i[0] for i in cur.execute('SELECT name FROM categories').fetchall()])
+
+        if not data is None:
+            self.editTaskButton.clicked.connect(self.edit_elem)
+            self.data = data
+            self.get_elem()
+
+            if not self.data[3] is None:
+                self.picture.setText('Изменить картинку')
+                self.way_to_picture = self.data[3]
+                self.set_image(self.way_to_picture)
+            else: 
+                self.picture.setText('Добавить картинку')
+            
+            self.deleteTaskButton.clicked.connect(self.delete_elem)
+
+        else:
+            self.editTaskButton.setText('Добавить')
+            self.picture.setText('Добавить картинку')
+            self.deleteTaskButton.setText('Закрыть')
+            self.editTaskButton.clicked.connect(self.add_elem)
+            self.deleteTaskButton.clicked.connect(self.close)
+
+        self.picture.clicked.connect(self.choose_picture)
+
+    def add_elem(self):
+        name = self.name.toPlainText()
+        date = self.date.text()
+        category = self.category.currentIndex()
+
+        if self.get_adding_verdict():
+            with sqlite3.connect('to_do_list.sqlite') as con:
+                cur = con.cursor()
+                query = f'''INSERT INTO tasks(name, date, picture, category, completed)
+                        VALUES("{name}", "{date}", "{self.way_to_picture}", {category}, {0})'''
+                cur.execute(query)
+                con.commit()
+                self.close()
+                self.parent().to_filter()
+        else:
+            self.statusBar().showMessage('Неверно заполнена форма')
+
+    def edit_elem(self):
+        pass
+
+    def delete_elem(self):
+        name = self.name.toPlainText()
+        date = self.date.text()
+
+        valid = QMessageBox.question(
+            self, '', f"Действительно удалить задачу {name}, {date}",
+            buttons=QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        
+        if valid == QMessageBox.StandardButton.Yes:
+            with sqlite3.connect('to_do_list.sqlite') as con:
+                cur = con.cursor()
+                cur.execute(f"DELETE FROM tasks WHERE name = '{name}' AND date = '{date}'")
+                con.commit()
+                self.close()
+        self.parent().update_tasks()
+
+    def get_adding_verdict(self):
+        name = self.name.toPlainText()
+        date = self.date.text()
+
+        if name.strip() == '':
+            return False
+        
+        if date.strip() == '':
+            return False
+        
+        if not re.fullmatch(r'\d{2}\.\d{2}\.\d{4}', date):
+            return False
+        
+        return True
+
+    def get_editing_verdict(self):
+        pass
+
+    def update_pixmap(self, pixmap):
+        scaled_pixmap = pixmap.scaled(
+            self.image.size(), 
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
+        self.image.setPixmap(scaled_pixmap)
+
+    def set_image(self, picture):
+        self.pixmap = QPixmap(QImage(picture))
+        self.image.setPixmap(self.pixmap)
+        self.update_pixmap(self.pixmap)
+
+    def choose_picture(self):
+        picture = QFileDialog.getOpenFileName(self, 'Выбрать картинку', '')[0]
+        if picture:
+            self.way_to_picture = picture
+            self.set_image(self.way_to_picture)
+
+    def get_elem(self):
+        self.name.setPlainText(self.data[1]) 
+        self.date.setText(self.data[2])
+        self.category.setCurrentText(str(self.data[4]))
 
 
 def main():
