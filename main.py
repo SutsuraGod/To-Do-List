@@ -40,9 +40,8 @@ class MyWidget(QMainWindow, mainWindowUi):
 
         if self.current_tab == 0:
             cur_category = self.categoriesInTasks.currentIndex()
-
             query = '''SELECT tasks.id, tasks.name, tasks.date,
-                    IFNULL(tasks.picture, "Нет изображения"), categories.name, tasks.completed FROM tasks
+                    tasks.picture, tasks.category, tasks.completed FROM tasks
                     LEFT JOIN categories ON categories.id = tasks.category'''
             order = ''' ORDER BY tasks.completed'''
             
@@ -50,8 +49,8 @@ class MyWidget(QMainWindow, mainWindowUi):
                 result = cur.execute(query + order).fetchall()
             else:
                 result = cur.execute(f'''{query} WHERE categories.id = {cur_category}{order}''').fetchall()
-            
-            self.update_tasks()
+
+            self.update_tasks(result)
         else:
             cur_category = self.categoriesInEvents.currentIndex()
 
@@ -66,10 +65,11 @@ class MyWidget(QMainWindow, mainWindowUi):
 
             self.update_events(result)
 
-    def update_tasks(self):
-        cur = self.con.cursor()
-        query = '''SELECT * FROM tasks'''
-        result = cur.execute(query).fetchall()
+    def update_tasks(self, result=None):
+        if result is None:
+            cur = self.con.cursor()
+            query = '''SELECT * FROM tasks'''
+            result = cur.execute(query).fetchall()
 
         if not self.container_layout:
             self.container_layout = QVBoxLayout(self.tasksContainer)
@@ -239,8 +239,12 @@ class TaskWidget(QMainWindow, editTaskUi):
         if self.get_adding_verdict():
             with sqlite3.connect('to_do_list.sqlite') as con:
                 cur = con.cursor()
-                query = f'''INSERT INTO tasks(name, date, picture, category, completed)
-                        VALUES("{name}", "{date}", "{self.way_to_picture}", {category}, {0})'''
+                if not self.way_to_picture is None:
+                    query = f'''INSERT INTO tasks(name, date, picture, category, completed)
+                            VALUES("{name}", "{date}", "{self.way_to_picture}", {category + 1}, {0})'''
+                else:
+                    query = f'''INSERT INTO tasks(name, date, category, completed)
+                            VALUES("{name}", "{date}", {category + 1}, {0})'''
                 cur.execute(query)
                 con.commit()
                 self.close()
@@ -249,7 +253,27 @@ class TaskWidget(QMainWindow, editTaskUi):
             self.statusBar().showMessage('Неверно заполнена форма')
 
     def edit_elem(self):
-        pass
+        name = self.name.toPlainText()
+        date = self.date.text()
+        category = self.category.currentIndex()
+
+        if self.get_adding_verdict():
+            with sqlite3.connect('to_do_list.sqlite') as con:
+                cur = con.cursor()
+                if not self.way_to_picture is None:
+                    query = f'''UPDATE tasks
+                            SET name = "{name}", date = "{date}", picture = "{self.way_to_picture}", category = {category + 1}
+                            WHERE id = {self.data[0]}'''
+                else:
+                    query = f'''UPDATE tasks
+                            SET name = "{name}", date = "{date}", category = {category + 1}
+                            WHERE id = {self.data[0]}'''
+                cur.execute(query)
+                con.commit()
+                self.close()
+                self.parent().to_filter()
+        else:
+            self.statusBar().showMessage('Неверно заполнена форма')
 
     def delete_elem(self):
         name = self.name.toPlainText()
@@ -270,6 +294,7 @@ class TaskWidget(QMainWindow, editTaskUi):
     def get_adding_verdict(self):
         name = self.name.toPlainText()
         date = self.date.text()
+        day_in_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
         if name.strip() == '':
             return False
@@ -279,11 +304,36 @@ class TaskWidget(QMainWindow, editTaskUi):
         
         if not re.fullmatch(r'\d{2}\.\d{2}\.\d{4}', date):
             return False
+
+        if int(date.split('.')[1]) > 12:
+            return False
+
+        if int(date.split('.')[0]) > day_in_month[int(date.split('.')[1]) - 1]:
+            return False
         
         return True
 
     def get_editing_verdict(self):
-        pass
+        name = self.name.toPlainText()
+        date = self.date.text()
+        day_in_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+        if name.strip() == '':
+            return False
+        
+        if date.strip() == '':
+            return False
+        
+        if not re.fullmatch(r'\d{2}\.\d{2}\.\d{4}', date):
+            return False
+
+        if int(date.split('.')[1]) > 12:
+            return False
+
+        if int(date.split('.')[0]) > day_in_month[int(date.split('.')[1]) - 1]:
+            return False
+        
+        return True
 
     def update_pixmap(self, pixmap):
         scaled_pixmap = pixmap.scaled(
@@ -307,7 +357,7 @@ class TaskWidget(QMainWindow, editTaskUi):
     def get_elem(self):
         self.name.setPlainText(self.data[1]) 
         self.date.setText(self.data[2])
-        self.category.setCurrentText(str(self.data[4]))
+        self.category.setCurrentIndex(int(self.data[4]) - 1)
 
 
 def main():
