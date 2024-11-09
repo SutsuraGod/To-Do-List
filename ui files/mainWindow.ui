@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>575</width>
-    <height>688</height>
+    <height>648</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -60,7 +60,7 @@
              <x>0</x>
              <y>0</y>
              <width>531</width>
-             <height>517</height>
+             <height>506</height>
             </rect>
            </property>
            <layout class="QGridLayout" name="gridLayout_4">
@@ -71,6 +71,13 @@
               </property>
               <property name="frameShadow">
                <enum>QFrame::Raised</enum>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QPushButton" name="addTaskButton">
+              <property name="text">
+               <string>Добавить</string>
               </property>
              </widget>
             </item>
@@ -114,13 +121,6 @@
         </item>
        </layout>
       </widget>
-     </widget>
-    </item>
-    <item row="1" column="0">
-     <widget class="QPushButton" name="addTaskButton">
-      <property name="text">
-       <string>Добавить</string>
-      </property>
      </widget>
     </item>
    </layout>

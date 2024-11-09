@@ -40,8 +40,8 @@
    <widget class="QPushButton" name="picture">
     <property name="geometry">
      <rect>
-      <x>69</x>
-      <y>199</y>
+      <x>70</x>
+      <y>200</y>
       <width>351</width>
       <height>23</height>
      </rect>
@@ -53,8 +53,8 @@
    <widget class="QComboBox" name="category">
     <property name="geometry">
      <rect>
-      <x>69</x>
-      <y>173</y>
+      <x>70</x>
+      <y>180</y>
       <width>351</width>
       <height>20</height>
      </rect>
@@ -76,8 +76,8 @@
    <widget class="QLabel" name="categoryLabel">
     <property name="geometry">
      <rect>
-      <x>9</x>
-      <y>173</y>
+      <x>10</x>
+      <y>180</y>
       <width>54</width>
       <height>16</height>
      </rect>
@@ -128,16 +128,6 @@
      <set>Qt::AlignCenter</set>
     </property>
    </widget>
-   <widget class="QLineEdit" name="date">
-    <property name="geometry">
-     <rect>
-      <x>70</x>
-      <y>150</y>
-      <width>351</width>
-      <height>20</height>
-     </rect>
-    </property>
-   </widget>
    <widget class="QPushButton" name="editTaskButton">
     <property name="geometry">
      <rect>
@@ -149,6 +139,16 @@
     </property>
     <property name="text">
      <string>Изменить</string>
+    </property>
+   </widget>
+   <widget class="QDateEdit" name="date">
+    <property name="geometry">
+     <rect>
+      <x>70</x>
+      <y>150</y>
+      <width>351</width>
+      <height>22</height>
+     </rect>
     </property>
    </widget>
   </widget>
