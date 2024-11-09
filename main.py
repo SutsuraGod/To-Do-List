@@ -183,7 +183,7 @@ class Categories(QMainWindow, categoriesWindowUi):
             self.statusBar().clearMessage()
             data = [self.categoriesTable.item(i, 0).text() for i in rows]
             valid = QMessageBox.question(
-                self, '', f"Действительно удалить категорию {data[0]}",
+                self, '', f"Действительно удалить категорию {data[0]}?",
                 buttons=QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         
             if valid == QMessageBox.StandardButton.Yes:
