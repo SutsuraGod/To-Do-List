@@ -182,17 +182,20 @@ class Categories(QMainWindow, categoriesWindowUi):
         if rows and len(rows) == 1:
             self.statusBar().clearMessage()
             data = [self.categoriesTable.item(i, 0).text() for i in rows]
-            valid = QMessageBox.question(
-                self, '', f"Действительно удалить категорию {data[0]}?",
-                buttons=QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        
-            if valid == QMessageBox.StandardButton.Yes:
-                with sqlite3.connect('to_do_list.sqlite') as con:
-                    cur = con.cursor()
-                    cur.execute(f"DELETE FROM categories WHERE name = '{data[0]}'")
-                    con.commit()
-                    self.update_result()
-                    self.parent().update_combobox()
+            if self.get_deleting_verdict(data[0]):
+                valid = QMessageBox.question(
+                    self, '', f"Действительно удалить категорию {data[0]}?",
+                    buttons=QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            
+                if valid == QMessageBox.StandardButton.Yes:
+                    with sqlite3.connect('to_do_list.sqlite') as con:
+                        cur = con.cursor()
+                        cur.execute(f"DELETE FROM categories WHERE name = '{data[0]}'")
+                        con.commit()
+                        self.update_result()
+                        self.parent().update_combobox()
+            else:
+                self.statusBar().showMessage('К этой категории прикреплены неудаленные задачи')
         elif len(rows) > 1:
             self.statusBar().showMessage('Нужно выбрать только один элемент')
         else:
@@ -212,6 +215,15 @@ class Categories(QMainWindow, categoriesWindowUi):
 
             context_menu.exec(event.globalPos())
 
+    def get_deleting_verdict(self, category):
+        with sqlite3.connect('to_do_list.sqlite') as con:
+            cur = con.cursor()
+            query = f'''SELECT name FROM tasks WHERE category = (SELECT id FROM categories WHERE name = "{category}")'''
+            result = cur.execute(query).fetchall()
+        if result:
+            return False
+        return True
+
 
 class editCategory(QMainWindow, editCategoryUi):
     def __init__(self, parent=None, data=None):
@@ -221,8 +233,8 @@ class editCategory(QMainWindow, editCategoryUi):
 
         if not data is None:
             self.pushButton.setText('Изменить')
-            self.pushButton.clicked.connect(self.edit_elem)
             self.data = data
+            self.pushButton.clicked.connect(self.edit_elem)
             self.get_elem()
         else:
             self.pushButton.setText('Добавить')
@@ -248,7 +260,16 @@ class editCategory(QMainWindow, editCategoryUi):
         category = self.CategoryEdit.toPlainText()
 
         if self.get_editing_verdict(category):
-            pass
+            with sqlite3.connect('to_do_list.sqlite') as con:
+                cur = con.cursor()
+
+                query = f'''UPDATE categories
+                            SET name = "{category}"
+                            WHERE name = "{self.data[0]}"'''
+                cur.execute(query)
+                con.commit()
+                self.close()
+                self.parent().update_result()
         else:
             self.statusBar().showMessage('Неверно заполнена форма')
 
@@ -340,17 +361,19 @@ class TaskWidget(QMainWindow, editTaskUi):
     def add_elem(self):
         name = self.name.toPlainText()
         date = self.date.date().toString('dd.MM.yyyy')
-        category = self.category.currentIndex()
+        category = self.category.currentText()
 
         if self.get_adding_verdict():
             with sqlite3.connect('to_do_list.sqlite') as con:
                 cur = con.cursor()
                 if not self.way_to_picture is None:
                     query = f'''INSERT INTO tasks(name, date, picture, category, completed)
-                            VALUES("{name}", "{date}", "{self.way_to_picture}", {category + 1}, {0})'''
+                            VALUES("{name}", "{date}", "{self.way_to_picture}",
+                            (SELECT id FROM categories WHERE name = '{category}'), {0})'''
                 else:
                     query = f'''INSERT INTO tasks(name, date, category, completed)
-                            VALUES("{name}", "{date}", {category + 1}, {0})'''
+                        VALUES ("{name}", "{date}",
+                        (SELECT id FROM categories WHERE name = '{category}'), {0})'''
                 cur.execute(query)
                 con.commit()
                 self.close()
