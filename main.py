@@ -1,5 +1,6 @@
 import sys
 import sqlite3
+import re
 
 from mainWindow_ui import Ui_MainWindow as mainWindowUi
 from categoriesWindow_ui import Ui_MainWindow as categoriesWindowUi
@@ -66,7 +67,7 @@ class MyWidget(QMainWindow, mainWindowUi):
             cur_category = self.categoriesInEvents.currentIndex()
 
             query = '''SELECT events.id, events.name, events.date,
-                    events.time, categories.name FROM events
+                    events.time, events.category FROM events
                     LEFT JOIN categories ON categories.id = events.category'''
             
             if cur_category == 0:
@@ -131,7 +132,8 @@ class MyWidget(QMainWindow, mainWindowUi):
                 self.container_layout_events.removeWidget(widget)
 
     def sort_events(self, data):
-        data = sorted(data, key=lambda x: x[2])
+        print(data)
+        data = sorted(data, key=lambda x: (int(x[2][6:]), int(x[2][3:5]),  int(x[2][:2])))
 
         grouped_list = []
         current_date = None
@@ -255,9 +257,12 @@ class Categories(QMainWindow, categoriesWindowUi):
     def get_deleting_verdict(self, category):
         with sqlite3.connect('to_do_list.sqlite') as con:
             cur = con.cursor()
-            query = f'''SELECT name FROM tasks WHERE category = (SELECT id FROM categories WHERE name = "{category}")'''
-            result = cur.execute(query).fetchall()
-        if result:
+            query1 = f'''SELECT name FROM tasks WHERE category = (SELECT id FROM categories WHERE name = "{category}")'''
+            result1 = cur.execute(query1).fetchall()
+            
+            query2 = f'''SELECT name FROM events WHERE category = (SELECT id FROM categories WHERE name = "{category}")'''
+            result2 = cur.execute(query2).fetchall()
+        if result1 or result2:
             return False
         return True
 
@@ -364,8 +369,7 @@ class TaskForm(QWidget, taskWidgetUi):
 
 class TaskWidget(QMainWindow, editTaskUi):
     def __init__(self,  parent=None, data=None):
-        super().__init__()
-        self.parent = parent
+        super().__init__(parent)
         self.setupUi(self)
         self.setFixedSize(429, 505)
         self.way_to_picture = None
@@ -425,7 +429,7 @@ class TaskWidget(QMainWindow, editTaskUi):
         date = self.date.date().toString('dd.MM.yyyy')
         category = self.category.currentIndex()
 
-        if self.get_adding_verdict():
+        if self.get_editing_verdict():
             with sqlite3.connect('to_do_list.sqlite') as con:
                 cur = con.cursor()
                 if not self.way_to_picture is None:
@@ -511,7 +515,7 @@ class EventForm(QWidget, eventWidgetUi):
         self.eventsMoreInfoButton.clicked.connect(self.edit_event)
 
     def edit_event(self):
-        self.edit_event_widget = EventWidget(self.data, self.parent)
+        self.edit_event_widget = EventWidget(self.parent, self.data)
         self.edit_event_widget.show()
 
 
@@ -525,12 +529,124 @@ class eventsDate(QWidget, eventsDateUi):
 
 
 class EventWidget(QMainWindow, editEventUi):
-    def __init__(self,  data=None, parent=None):
-        super().__init__()
-        self.parent = parent
+    def __init__(self, parent=None, data=None):
+        super().__init__(parent)
         self.setupUi(self)
         self.setFixedSize(415, 269)
-        self.data = data
+
+        with sqlite3.connect('to_do_list.sqlite') as con:
+            cur = con.cursor()
+            self.category.addItems([i[0] for i in cur.execute('SELECT name FROM categories').fetchall()])
+
+        if not data is None:
+            self.editEventButton.clicked.connect(self.edit_elem)
+            self.deleteEventButton.clicked.connect(self.delete_elem)
+            self.data = data
+            self.get_elem()
+        else:
+            self.editEventButton.setText('Добавить')
+            self.deleteEventButton.setText('Закрыть')
+            self.editEventButton.clicked.connect(self.add_elem)
+            self.deleteEventButton.clicked.connect(self.close)
+    
+    def add_elem(self):
+        name = self.name.toPlainText()
+        date = self.date.date().toString('dd.MM.yyyy')
+        time = self.time.toPlainText()
+        category = self.category.currentText()
+
+        if self.get_adding_verdict():
+            with sqlite3.connect('to_do_list.sqlite') as con:
+                cur = con.cursor()
+                query = f'''INSERT INTO events(name, date, time, category)
+                        VALUES("{name}", "{date}", "{time}",
+                        (SELECT id FROM categories WHERE name = '{category}'))'''
+                cur.execute(query)
+                con.commit()
+                self.close()
+                self.parent().to_filter()
+        else:
+            self.statusBar().showMessage('Неверно заполнена форма')
+
+    def edit_elem(self):
+        name = self.name.toPlainText()
+        date = self.date.date().toString('dd.MM.yyyy')
+        time = self.time.toPlainText()
+        category = self.category.currentIndex()
+
+        if self.get_adding_verdict():
+            with sqlite3.connect('to_do_list.sqlite') as con:
+                cur = con.cursor()
+                query = f'''UPDATE events
+                            SET name = "{name}", date = "{date}", time = "{time}", category = {category + 1}
+                            WHERE id = {self.data[0]}'''
+                cur.execute(query)
+                con.commit()
+                self.close()
+                self.parent().to_filter()
+        else:
+            self.statusBar().showMessage('Неверно заполнена форма')
+
+    def get_adding_verdict(self):
+        name = self.name.toPlainText()
+        time = self.time.toPlainText()
+
+        if not name.strip():
+            return False
+        pattern = r'^\d\d:\d\d-\d\d:\d\d'
+        match = re.fullmatch(pattern, time)
+
+        if not match:
+            return False
+
+        h1, m1, h2, m2 = [int(time[i:i + 2]) for i in range(0, len(time), 3)]
+
+        if not (0 <= h1 < 24 and 0 <= m1 < 60 and 0 <= h2 < 24 and 0 <= m2 < 60):
+            return False
+
+        return True
+
+    def get_editing_verdict(self):
+        name = self.name.toPlainText()
+        time = self.time.toPlainText()
+
+        if not name.strip():
+            return False
+        pattern = r'^\d\d:\d\d-\d\d:\d\d'
+        match = re.fullmatch(pattern, time)
+
+        if not match:
+            return False
+
+        h1, m1, h2, m2 = [int(time[i:i + 2]) for i in range(0, len(time), 3)]
+
+        if not (0 <= h1 < 24 and 0 <= m1 < 60 and 0 <= h2 < 24 and 0 <= m2 < 60):
+            return False
+
+        return True
+
+    def delete_elem(self):
+        name = self.name.toPlainText()
+        date = self.date.date().toString('dd.MM.yyyy')
+        time = self.time.toPlainText()
+
+        valid = QMessageBox.question(
+            self, '', f"Действительно удалить задачу {name}, {date}, {time}",
+            buttons=QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        
+        if valid == QMessageBox.StandardButton.Yes:
+            with sqlite3.connect('to_do_list.sqlite') as con:
+                cur = con.cursor()
+                cur.execute(f"DELETE FROM events WHERE id = {self.data[0]}")
+                con.commit()
+                self.close()
+        self.parent().update_events()
+
+    def get_elem(self):
+        self.name.setPlainText(self.data[1])
+        self.date.setDate(QDate.fromString(self.data[2], 'dd.MM.yyyy'))
+        self.time.setPlainText(self.data[3])
+        self.category.setCurrentIndex(int(self.data[4]) - 1)
 
 
 def main():
