@@ -1,4 +1,4 @@
-# Form implementation generated from reading ui file 'taskWidget.ui'
+# Form implementation generated from reading ui file 'eventsDate.ui'
 #
 # Created by: PyQt6 UI code generator 6.7.1
 #
@@ -15,12 +15,9 @@ class Ui_Form(object):
         Form.resize(533, 95)
         self.gridLayout = QtWidgets.QGridLayout(Form)
         self.gridLayout.setObjectName("gridLayout")
-        self.tasksMoreInfoButton = QtWidgets.QPushButton(parent=Form)
-        self.tasksMoreInfoButton.setObjectName("tasksMoreInfoButton")
-        self.gridLayout.addWidget(self.tasksMoreInfoButton, 0, 1, 1, 1)
-        self.task = QtWidgets.QCheckBox(parent=Form)
-        self.task.setObjectName("task")
-        self.gridLayout.addWidget(self.task, 0, 0, 1, 1)
+        self.label = QtWidgets.QLabel(parent=Form)
+        self.label.setObjectName("label")
+        self.gridLayout.addWidget(self.label, 0, 0, 1, 1)
 
         self.retranslateUi(Form)
         QtCore.QMetaObject.connectSlotsByName(Form)
@@ -28,5 +25,4 @@ class Ui_Form(object):
     def retranslateUi(self, Form):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("Form", "Form"))
-        self.tasksMoreInfoButton.setText(_translate("Form", "Подробнее"))
-        self.task.setText(_translate("Form", "CheckBox"))
+        self.label.setText(_translate("Form", "<html><head/><body><p align=\"center\"><span style=\" font-size:14pt; font-weight:600;\">TextLabel</span></p></body></html>"))

@@ -14,17 +14,10 @@
    <string>Form</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="0" column="1">
-    <widget class="QPushButton" name="tasksMoreInfoButton">
-     <property name="text">
-      <string>Подробнее</string>
-     </property>
-    </widget>
-   </item>
    <item row="0" column="0">
-    <widget class="QCheckBox" name="task">
+    <widget class="QLabel" name="label">
      <property name="text">
-      <string>CheckBox</string>
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:14pt; font-weight:600;&quot;&gt;TextLabel&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
      </property>
     </widget>
    </item>

@@ -6,6 +6,9 @@ from categoriesWindow_ui import Ui_MainWindow as categoriesWindowUi
 from taskWidget_ui import Ui_Form as taskWidgetUi
 from editTask_ui import Ui_MainWindow as editTaskUi
 from editCategory_ui import Ui_MainWindow as editCategoryUi
+from editEvent_ui import Ui_MainWindow as editEventUi
+from eventsDate_ui import Ui_Form as eventsDateUi
+from eventWidget_ui import Ui_Form as eventWidgetUi
 
 from PyQt6.QtWidgets import QMainWindow, QApplication, QTableWidgetItem, QMenu, QWidget, QSplitter, QVBoxLayout
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
@@ -19,8 +22,13 @@ class MyWidget(QMainWindow, mainWindowUi):
         self.setupUi(self)
         self.setFixedSize(575, 688)
         self.con = sqlite3.connect('to_do_list.sqlite')
-        self.container_layout = 0
+
+        self.container_layout_tasks = 0
+        self.container_layout_events = 0
+
         self.taskWidgets = []
+        self.eventWidgets = []
+
         self.update_combobox()
 
         self.tab_changed(0)
@@ -30,6 +38,7 @@ class MyWidget(QMainWindow, mainWindowUi):
         self.editCategoryButtonInEvents.clicked.connect(self.edit_categories)
 
         self.addTaskButton.clicked.connect(self.add_task)
+        self.addEventButton.clicked.connect(self.add_event)
 
     def tab_changed(self, index):
         self.current_tab = index
@@ -40,9 +49,11 @@ class MyWidget(QMainWindow, mainWindowUi):
 
         if self.current_tab == 0:
             cur_category = self.categoriesInTasks.currentIndex()
+
             query = '''SELECT tasks.id, tasks.name, tasks.date,
                     tasks.picture, tasks.category, tasks.completed FROM tasks
                     LEFT JOIN categories ON categories.id = tasks.category'''
+
             order = ''' ORDER BY tasks.completed'''
             
             if cur_category == 0:
@@ -71,44 +82,76 @@ class MyWidget(QMainWindow, mainWindowUi):
             query = '''SELECT * FROM tasks'''
             result = cur.execute(query).fetchall()
 
-        if not self.container_layout:
-            self.container_layout = QVBoxLayout(self.tasksContainer)
+        if not self.container_layout_tasks:
+            self.container_layout_tasks = QVBoxLayout(self.tasksContainer)
         else:
             self.clear_tasksContainer()
 
         self.taskWidgets = []
-        for i in range(len(result)):
-            widget = TaskForm(f'{result[i][1]}',result[i], self)
-            self.container_layout.addWidget(widget)
+        for i in result:
+            widget = TaskForm(f'{i[1]}', i, self)
+            self.container_layout_tasks.addWidget(widget)
             self.taskWidgets.append(widget)
-        self.container_layout.addWidget(QSplitter(Qt.Orientation.Vertical))
+        self.container_layout_tasks.addWidget(QSplitter(Qt.Orientation.Vertical))
 
     def clear_tasksContainer(self):
-        for i in reversed(range(self.container_layout.count())):
-            widget = self.container_layout.itemAt(i).widget()
+        for i in reversed(range(self.container_layout_tasks.count())):
+            widget = self.container_layout_tasks.itemAt(i).widget()
             if widget is not None:
-                self.container_layout.removeWidget(widget)
+                self.container_layout_tasks.removeWidget(widget)
 
     def update_events(self, result=None):
         if result is None:
             cur = self.con.cursor()
             query = '''SELECT * FROM events'''
             result = cur.execute(query).fetchall()
-        if result:
-            self.eventsTable.setRowCount(len(result))
-            self.eventsTable.setHorizontalHeaderLabels(['Событие', 'Дата', 'Время', 'Категория'])
-            self.eventsTable.setColumnCount(len(result[0][1:]))
 
-            for i, row in enumerate(result):
-                for j, col in enumerate(row[1:]):
-                    self.eventsTable.setItem(i, j, QTableWidgetItem(str(col)))
-
-            self.eventsTable.resizeColumnsToContents()
+        if not self.container_layout_events:
+            self.container_layout_events = QVBoxLayout(self.eventsContainer)
         else:
-            self.eventsTable.clear()
-            self.eventsTable.setRowCount(0)
-            self.eventsTable.setHorizontalHeaderLabels(['Событие', 'Дата', 'Время', 'Категория'])
-            self.eventsTable.setColumnCount(0)
+            self.clear_eventsContainer()
+
+        result = self.sort_events(result)
+
+        self.eventsWidget = []
+        for i in result:
+            date = eventsDate(i[0][2])
+            self.container_layout_events.addWidget(date)
+            self.eventsWidget.append(date)
+            for j in i:
+                widget = EventForm(f'{j[1]}', f'{j[3]}', j, self)
+                self.container_layout_events.addWidget(widget)
+                self.eventsWidget.append(widget)
+        self.container_layout_events.addWidget(QSplitter(Qt.Orientation.Vertical))
+
+    def clear_eventsContainer(self):
+        for i in reversed(range(self.container_layout_events.count())):
+            widget = self.container_layout_events.itemAt(i).widget()
+            if widget is not None:
+                self.container_layout_events.removeWidget(widget)
+
+    def sort_events(self, data):
+        data = sorted(data, key=lambda x: x[2])
+
+        grouped_list = []
+        current_date = None
+        current_group = []
+
+        for i in data:
+            date = i[2]
+
+            if date != current_date:
+                if current_group:
+                    grouped_list.append(sorted(current_group, key=lambda x: (int(x[3][:2]), int(x[3][3:5]))))
+                current_group = [tuple(i)]
+                current_date = date
+            else:
+                current_group.append(tuple(i))
+
+        if current_group:
+            grouped_list.append(sorted(current_group, key=lambda x: (int(x[3][:2]), int(x[3][3:5]))))
+        
+        return grouped_list
 
     def edit_categories(self):
         self.edit_categories_widget = Categories(parent=self)
@@ -119,14 +162,8 @@ class MyWidget(QMainWindow, mainWindowUi):
         self.add_task_widget.show()
 
     def add_event(self):
-        pass
-
-    def edit_event(self):
-        pass
-
-    def delete_event(self):
-        pass
-
+        self.add_event_widget = EventWidget(self)
+        self.add_event_widget.show()
 
     def update_combobox(self):
         self.categoriesInTasks.clear()
@@ -286,9 +323,10 @@ class editCategory(QMainWindow, editCategoryUi):
     def get_elem(self):
         self.CategoryEdit.setPlainText(self.data[0])
 
+
 class TaskForm(QWidget, taskWidgetUi):
     def __init__(self, text, data, parent=None):
-        super().__init__(parent)
+        super().__init__()
         self.parent = parent
         self.setupUi(self)
         self.task.setText(text)
@@ -297,7 +335,7 @@ class TaskForm(QWidget, taskWidgetUi):
             self.task.setStyleSheet("QCheckBox { text-decoration: line-through; }")
             self.task.setChecked(True)
 
-        self.moreInfoButton.clicked.connect(self.edit_task)
+        self.tasksMoreInfoButton.clicked.connect(self.edit_task)
         self.task.stateChanged.connect(self.set_style_sheet)
 
     def set_style_sheet(self):
@@ -326,7 +364,8 @@ class TaskForm(QWidget, taskWidgetUi):
 
 class TaskWidget(QMainWindow, editTaskUi):
     def __init__(self,  parent=None, data=None):
-        super().__init__(parent)
+        super().__init__()
+        self.parent = parent
         self.setupUi(self)
         self.setFixedSize(429, 505)
         self.way_to_picture = None
@@ -459,6 +498,39 @@ class TaskWidget(QMainWindow, editTaskUi):
         self.name.setPlainText(self.data[1])
         self.date.setDate(QDate.fromString(self.data[2], 'dd.MM.yyyy'))
         self.category.setCurrentIndex(int(self.data[4]) - 1)
+
+
+class EventForm(QWidget, eventWidgetUi):
+    def __init__(self, text, time, data, parent=None):
+        super().__init__()
+        self.parent = parent
+        self.setupUi(self)
+        self.event.setText(f'{text} ({time})')
+        self.data = data
+
+        self.eventsMoreInfoButton.clicked.connect(self.edit_event)
+
+    def edit_event(self):
+        self.edit_event_widget = EventWidget(self.data, self.parent)
+        self.edit_event_widget.show()
+
+
+class eventsDate(QWidget, eventsDateUi):
+    def __init__(self, date, parent=None):
+        super().__init__()
+        self.parent = parent
+        self.setupUi(self)
+        self.label.setText(date)
+        self.label.setStyleSheet("color: black; font-size: 18px; font-weight: bold;")
+
+
+class EventWidget(QMainWindow, editEventUi):
+    def __init__(self,  data=None, parent=None):
+        super().__init__()
+        self.parent = parent
+        self.setupUi(self)
+        self.setFixedSize(415, 269)
+        self.data = data
 
 
 def main():
