@@ -132,7 +132,6 @@ class MyWidget(QMainWindow, mainWindowUi):
                 self.container_layout_events.removeWidget(widget)
 
     def sort_events(self, data):
-        print(data)
         data = sorted(data, key=lambda x: (int(x[2][6:]), int(x[2][3:5]),  int(x[2][:2])))
 
         grouped_list = []
