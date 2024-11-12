@@ -17,10 +17,11 @@ from PyQt6.QtCore import Qt, QDate
 from PyQt6.QtGui import QPixmap, QImage
 
 
-class MyWidget(QMainWindow, mainWindowUi):
+class MainWidget(QMainWindow, mainWindowUi):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
+        self.setWindowTitle('To do list')
         self.setFixedSize(575, 688)
         self.con = sqlite3.connect('to_do_list.sqlite')
 
@@ -116,7 +117,7 @@ class MyWidget(QMainWindow, mainWindowUi):
 
         self.eventsWidget = []
         for i in result:
-            date = eventsDate(i[0][2])
+            date = EventsDate(i[0][2])
             self.container_layout_events.addWidget(date)
             self.eventsWidget.append(date)
             for j in i:
@@ -181,6 +182,7 @@ class Categories(QMainWindow, categoriesWindowUi):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
+        self.setWindowTitle('Категории')
         self.setFixedSize(494, 359)
         self.update_result()
 
@@ -200,7 +202,7 @@ class Categories(QMainWindow, categoriesWindowUi):
         self.parent().update_combobox()
 
     def add_category(self):
-        self.add_category_widget = editCategory(self)
+        self.add_category_widget = EditCategory(self)
         self.add_category_widget.show()
 
     def edit_category(self):
@@ -208,7 +210,7 @@ class Categories(QMainWindow, categoriesWindowUi):
         if rows and len(rows) == 1:
             self.statusBar().clearMessage()
             data = [self.categoriesTable.item(i, 0).text() for i in rows]
-            self.edit_category_widget = editCategory(self, data)
+            self.edit_category_widget = EditCategory(self, data)
             self.edit_category_widget.show()
         elif len(rows) > 1:
             self.statusBar().showMessage('Нужно выбрать только один элемент')
@@ -266,10 +268,11 @@ class Categories(QMainWindow, categoriesWindowUi):
         return True
 
 
-class editCategory(QMainWindow, editCategoryUi):
+class EditCategory(QMainWindow, editCategoryUi):
     def __init__(self, parent=None, data=None):
         super().__init__(parent)
         self.setupUi(self)
+        self.setWindowTitle('Категория')
         self.setFixedSize(264, 138)
 
         if not data is None:
@@ -370,6 +373,7 @@ class TaskWidget(QMainWindow, editTaskUi):
     def __init__(self,  parent=None, data=None):
         super().__init__(parent)
         self.setupUi(self)
+        self.setWindowTitle('Задача')
         self.setFixedSize(429, 505)
         self.way_to_picture = None
 
@@ -518,7 +522,7 @@ class EventForm(QWidget, eventWidgetUi):
         self.edit_event_widget.show()
 
 
-class eventsDate(QWidget, eventsDateUi):
+class EventsDate(QWidget, eventsDateUi):
     def __init__(self, date, parent=None):
         super().__init__()
         self.parent = parent
@@ -531,6 +535,7 @@ class EventWidget(QMainWindow, editEventUi):
     def __init__(self, parent=None, data=None):
         super().__init__(parent)
         self.setupUi(self)
+        self.setWindowTitle('Событие')
         self.setFixedSize(415, 269)
 
         with sqlite3.connect('to_do_list.sqlite') as con:
@@ -650,7 +655,7 @@ class EventWidget(QMainWindow, editEventUi):
 
 def main():
     app = QApplication(sys.argv)
-    mw = MyWidget()
+    mw = MainWidget()
     mw.show()
     sys.exit(app.exec())
 
