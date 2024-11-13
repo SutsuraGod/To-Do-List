@@ -1,6 +1,7 @@
 import sys
 import sqlite3
 import re
+import csv
 
 from mainWindow_ui import Ui_MainWindow as mainWindowUi
 from categoriesWindow_ui import Ui_MainWindow as categoriesWindowUi
@@ -42,11 +43,14 @@ class MainWidget(QMainWindow, mainWindowUi):
         self.addTaskButton.clicked.connect(self.add_task)
         self.addEventButton.clicked.connect(self.add_event)
 
+        self.exportTasksCsv.clicked.connect(self.export_tasks_to_csv)
+        self.exportEventsCsv.clicked.connect(self.export_events_to_csv)
+
     def tab_changed(self, index):
         self.current_tab = index
         self.to_filter()
 
-    def to_filter(self):
+    def to_filter(self, export_tasks=False, export_events=False):
         cur = self.con.cursor()
 
         if self.current_tab == 0:
@@ -57,13 +61,20 @@ class MainWidget(QMainWindow, mainWindowUi):
                     LEFT JOIN categories ON categories.id = tasks.category'''
 
             order = ''' ORDER BY tasks.completed'''
-            
+
             if cur_category == 0:
                 result = cur.execute(query + order).fetchall()
+            elif self.categoriesInTasks.count() - cur_category == 2:
+                result = cur.execute(f'''{query} WHERE completed = 0''').fetchall()
+            elif self.categoriesInTasks.count() - cur_category == 1:
+                result = cur.execute(f'''{query} WHERE completed = 1''').fetchall()
             else:
                 result = cur.execute(f'''{query} WHERE categories.id = {cur_category}{order}''').fetchall()
 
-            self.update_tasks(result)
+            if export_tasks:
+                return result
+            else:
+                self.update_tasks(result)
         else:
             cur_category = self.categoriesInEvents.currentIndex()
 
@@ -76,7 +87,10 @@ class MainWidget(QMainWindow, mainWindowUi):
             else:
                 result = cur.execute(f'''{query} WHERE categories.id = {cur_category}''').fetchall()
 
-            self.update_events(result)
+            if export_events:
+                return result
+            else:
+                self.update_events(result)
 
     def update_tasks(self, result=None):
         if result is None:
@@ -171,11 +185,27 @@ class MainWidget(QMainWindow, mainWindowUi):
         self.categoriesInTasks.clear()
         self.categoriesInEvents.clear()
         cur = self.con.cursor()
-        self.categoriesInTasks.addItems(['Все'] + [i[0] for i in cur.execute('SELECT name FROM categories').fetchall()])
+        self.categoriesInTasks.addItems(['Все'] + [i[0] for i in cur.execute('SELECT name FROM categories').fetchall()] + ['Незавершенные', 'Завершенные'])
         self.filterTasksButton.clicked.connect(self.to_filter)
 
         self.categoriesInEvents.addItems(['Все'] + [i[0] for i in cur.execute('SELECT name FROM categories').fetchall()])
         self.filterEventsButton.clicked.connect(self.to_filter)
+
+    def export_tasks_to_csv(self):
+        result = self.to_filter(export_tasks=True)
+        with open('tasks.csv', 'w', newline='', encoding='utf-8') as outputfile:
+            writer = csv.writer(outputfile, delimiter=';', quotechar='"')
+
+            writer.writerow(['id', 'name', 'date', 'picture', 'category', 'completed'])
+            writer.writerows(result)
+
+    def export_events_to_csv(self):
+        result = self.to_filter(export_events=True)
+        with open('events.csv', 'w', newline='', encoding='utf-8') as outputfile:
+            writer = csv.writer(outputfile, delimiter=';', quotechar='"')
+
+            writer.writerow(['id', 'name', 'date', 'time', 'category'])
+            writer.writerows(result)
 
 
 class Categories(QMainWindow, categoriesWindowUi):
