@@ -1,8 +1,9 @@
+# Импорт библиотек
 import sys
 import sqlite3
 import re
 import csv
-
+# Импорт Ui файлов
 from mainWindow_ui import Ui_MainWindow as mainWindowUi
 from categoriesWindow_ui import Ui_MainWindow as categoriesWindowUi
 from taskWidget_ui import Ui_Form as taskWidgetUi
@@ -11,14 +12,14 @@ from editCategory_ui import Ui_MainWindow as editCategoryUi
 from editEvent_ui import Ui_MainWindow as editEventUi
 from eventsDate_ui import Ui_Form as eventsDateUi
 from eventWidget_ui import Ui_Form as eventWidgetUi
-
+# Импорт PyQt6
 from PyQt6.QtWidgets import QMainWindow, QApplication, QTableWidgetItem, QMenu, QWidget, QSplitter, QVBoxLayout
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
 from PyQt6.QtCore import Qt, QDate
 from PyQt6.QtGui import QPixmap, QImage
 
 
-class MainWidget(QMainWindow, mainWindowUi):
+class MainWidget(QMainWindow, mainWindowUi): # Класс основной формы
     def __init__(self):
         super().__init__()
         self.setupUi(self)
@@ -46,14 +47,14 @@ class MainWidget(QMainWindow, mainWindowUi):
         self.exportTasksCsv.clicked.connect(self.export_tasks_to_csv)
         self.exportEventsCsv.clicked.connect(self.export_events_to_csv)
 
-    def tab_changed(self, index):
-        self.current_tab = index
+    def tab_changed(self, index): # Вызывается при переходе из одной вкладки в другую у QTabWidget
+        self.current_tab = index # записывает в переменную индекс текущей вкладки
         self.to_filter()
 
-    def to_filter(self, export_tasks=False, export_events=False):
+    def to_filter(self, export_tasks=False, export_events=False): # Делает запрос в БД для получения данных из нее
         cur = self.con.cursor()
 
-        if self.current_tab == 0:
+        if self.current_tab == 0: # Если открыта вкладка с задачами
             cur_category = self.categoriesInTasks.currentIndex()
 
             query = '''SELECT tasks.id, tasks.name, tasks.date,
@@ -75,7 +76,7 @@ class MainWidget(QMainWindow, mainWindowUi):
                 return result
             else:
                 self.update_tasks(result)
-        else:
+        else: # Если открыта вкладка с событиями
             cur_category = self.categoriesInEvents.currentIndex()
 
             query = '''SELECT events.id, events.name, events.date,
@@ -92,7 +93,7 @@ class MainWidget(QMainWindow, mainWindowUi):
             else:
                 self.update_events(result)
 
-    def update_tasks(self, result=None):
+    def update_tasks(self, result=None): # Выводит список задач, хранящийся в БД
         if result is None:
             cur = self.con.cursor()
             query = '''SELECT * FROM tasks'''
@@ -110,13 +111,13 @@ class MainWidget(QMainWindow, mainWindowUi):
             self.taskWidgets.append(widget)
         self.container_layout_tasks.addWidget(QSplitter(Qt.Orientation.Vertical))
 
-    def clear_tasksContainer(self):
+    def clear_tasksContainer(self): # Функция необходимая для удаления виджетов из container_layout_tasks
         for i in reversed(range(self.container_layout_tasks.count())):
             widget = self.container_layout_tasks.itemAt(i).widget()
             if widget is not None:
                 self.container_layout_tasks.removeWidget(widget)
 
-    def update_events(self, result=None):
+    def update_events(self, result=None): # Выводит список событий, хранящийся в БД
         if result is None:
             cur = self.con.cursor()
             query = '''SELECT * FROM events'''
@@ -140,13 +141,13 @@ class MainWidget(QMainWindow, mainWindowUi):
                 self.eventsWidget.append(widget)
         self.container_layout_events.addWidget(QSplitter(Qt.Orientation.Vertical))
 
-    def clear_eventsContainer(self):
+    def clear_eventsContainer(self): # Функция необходимая для удаления виджетов из container_layout_events
         for i in reversed(range(self.container_layout_events.count())):
             widget = self.container_layout_events.itemAt(i).widget()
             if widget is not None:
                 self.container_layout_events.removeWidget(widget)
 
-    def sort_events(self, data):
+    def sort_events(self, data): # Сортирует список событий по дате и времени
         data = sorted(data, key=lambda x: (int(x[2][6:]), int(x[2][3:5]),  int(x[2][:2])))
 
         grouped_list = []
@@ -169,19 +170,19 @@ class MainWidget(QMainWindow, mainWindowUi):
         
         return grouped_list
 
-    def edit_categories(self):
+    def edit_categories(self): # Вызывает окно со списком категорий
         self.edit_categories_widget = Categories(parent=self)
         self.edit_categories_widget.show()
 
-    def add_task(self):
+    def add_task(self): # Вызывает виджет для добавления задачи
         self.add_task_widget = TaskWidget(self)
         self.add_task_widget.show()
 
-    def add_event(self):
+    def add_event(self): # Вызывает виджет для добавления события
         self.add_event_widget = EventWidget(self)
         self.add_event_widget.show()
 
-    def update_combobox(self):
+    def update_combobox(self): # Записывает категории, хранящиеся в БД, в QComboBox
         self.categoriesInTasks.clear()
         self.categoriesInEvents.clear()
         cur = self.con.cursor()
@@ -191,7 +192,7 @@ class MainWidget(QMainWindow, mainWindowUi):
         self.categoriesInEvents.addItems(['Все'] + [i[0] for i in cur.execute('SELECT name FROM categories').fetchall()])
         self.filterEventsButton.clicked.connect(self.to_filter)
 
-    def export_tasks_to_csv(self):
+    def export_tasks_to_csv(self): # Осуществляет экспорт задач в .csv файл
         result = self.to_filter(export_tasks=True)
         with open('tasks.csv', 'w', newline='', encoding='utf-8') as outputfile:
             writer = csv.writer(outputfile, delimiter=';', quotechar='"')
@@ -199,7 +200,7 @@ class MainWidget(QMainWindow, mainWindowUi):
             writer.writerow(['id', 'name', 'date', 'picture', 'category', 'completed'])
             writer.writerows(result)
 
-    def export_events_to_csv(self):
+    def export_events_to_csv(self): # Осуществляет экспорт событий в .csv файл
         result = self.to_filter(export_events=True)
         with open('events.csv', 'w', newline='', encoding='utf-8') as outputfile:
             writer = csv.writer(outputfile, delimiter=';', quotechar='"')
@@ -208,7 +209,7 @@ class MainWidget(QMainWindow, mainWindowUi):
             writer.writerows(result)
 
 
-class Categories(QMainWindow, categoriesWindowUi):
+class Categories(QMainWindow, categoriesWindowUi): # Окно со списком категорий
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
@@ -216,7 +217,7 @@ class Categories(QMainWindow, categoriesWindowUi):
         self.setFixedSize(494, 359)
         self.update_result()
 
-    def update_result(self):
+    def update_result(self): # Выводит список категорий, хранящийся в БД
         cur = self.parent().con.cursor()
         query = 'SELECT * FROM categories'
         result = cur.execute(query).fetchall()
@@ -231,11 +232,11 @@ class Categories(QMainWindow, categoriesWindowUi):
         self.categoriesTable.resizeColumnsToContents()
         self.parent().update_combobox()
 
-    def add_category(self):
+    def add_category(self): # Вызывает форму для добавления категории
         self.add_category_widget = EditCategory(self)
         self.add_category_widget.show()
 
-    def edit_category(self):
+    def edit_category(self): # Вызывает форму для редактирования категории
         rows = list(set([i.row() for i in self.categoriesTable.selectedItems()]))
         if rows and len(rows) == 1:
             self.statusBar().clearMessage()
@@ -247,7 +248,7 @@ class Categories(QMainWindow, categoriesWindowUi):
         else:
             self.statusBar().showMessage('Ничего не выбрано')
 
-    def delete_category(self):
+    def delete_category(self): # Вызывает окно для удаления категории
         rows = list(set([i.row() for i in self.categoriesTable.selectedItems()]))
         if rows and len(rows) == 1:
             self.statusBar().clearMessage()
@@ -271,7 +272,7 @@ class Categories(QMainWindow, categoriesWindowUi):
         else:
             self.statusBar().showMessage('Ничего не выбрано')
 
-    def contextMenuEvent(self, event):
+    def contextMenuEvent(self, event): # Необходимая функция для реализации контекстного меню
         if self.categoriesTable.geometry().contains(self.mapFromGlobal(event.globalPos())):
             context_menu = QMenu(self)
 
@@ -285,7 +286,7 @@ class Categories(QMainWindow, categoriesWindowUi):
 
             context_menu.exec(event.globalPos())
 
-    def get_deleting_verdict(self, category):
+    def get_deleting_verdict(self, category): # Делает вердикт: "Можно ли удалять данную категорию?"
         with sqlite3.connect('to_do_list.sqlite') as con:
             cur = con.cursor()
             query1 = f'''SELECT name FROM tasks WHERE category = (SELECT id FROM categories WHERE name = "{category}")'''
@@ -293,12 +294,12 @@ class Categories(QMainWindow, categoriesWindowUi):
             
             query2 = f'''SELECT name FROM events WHERE category = (SELECT id FROM categories WHERE name = "{category}")'''
             result2 = cur.execute(query2).fetchall()
-        if result1 or result2:
+        if result1 or result2: # Если есть задачи или события с данной категорией, то удалять ее нельзя
             return False
-        return True
+        return True # Иначе можно
 
 
-class EditCategory(QMainWindow, editCategoryUi):
+class EditCategory(QMainWindow, editCategoryUi): # Окно для редактирования и добавления категории
     def __init__(self, parent=None, data=None):
         super().__init__(parent)
         self.setupUi(self)
@@ -314,10 +315,10 @@ class EditCategory(QMainWindow, editCategoryUi):
             self.pushButton.setText('Добавить')
             self.pushButton.clicked.connect(self.add_elem)
 
-    def add_elem(self):
+    def add_elem(self): # Функция, добавляющая категорию
         category = self.CategoryEdit.toPlainText()
         
-        if self.get_adding_verdict(category):
+        if self.get_verdict(category):
             with sqlite3.connect('to_do_list.sqlite') as con:
                 cur = con.cursor()
 
@@ -330,10 +331,10 @@ class EditCategory(QMainWindow, editCategoryUi):
         else:
             self.statusBar().showMessage('Неверно заполнена форма')
 
-    def edit_elem(self):
+    def edit_elem(self): # Функция, редактирующая категорию
         category = self.CategoryEdit.toPlainText()
 
-        if self.get_editing_verdict(category):
+        if self.get_verdict(category):
             with sqlite3.connect('to_do_list.sqlite') as con:
                 cur = con.cursor()
 
@@ -347,21 +348,16 @@ class EditCategory(QMainWindow, editCategoryUi):
         else:
             self.statusBar().showMessage('Неверно заполнена форма')
 
-    def get_adding_verdict(self, category):
+    def get_verdict(self, category): # Возвращает True, если поля с данными заполены правильно, иначе False
         if category.strip():
             return True
         return False
 
-    def get_editing_verdict(self, category):
-        if category.strip():
-            return True
-        return False
-
-    def get_elem(self):
+    def get_elem(self): # Заполняет окно данными перед редактированием
         self.CategoryEdit.setPlainText(self.data[0])
 
 
-class TaskForm(QWidget, taskWidgetUi):
+class TaskForm(QWidget, taskWidgetUi): # Форма для отображения задачи
     def __init__(self, text, data, parent=None):
         super().__init__()
         self.parent = parent
@@ -375,7 +371,7 @@ class TaskForm(QWidget, taskWidgetUi):
         self.tasksMoreInfoButton.clicked.connect(self.edit_task)
         self.task.stateChanged.connect(self.set_style_sheet)
 
-    def set_style_sheet(self):
+    def set_style_sheet(self): # Если QCheckBox отмечен галочкой, то делает текст задачи зачеркнутым, иначе нет
         with sqlite3.connect('to_do_list.sqlite') as con:
             cur = con.cursor()
             if self.task.isChecked():
@@ -391,15 +387,12 @@ class TaskForm(QWidget, taskWidgetUi):
                 cur.execute(query)
                 self.task.setStyleSheet("QCheckBox { text-decoration: none; }")
 
-    def edit_task(self):
+    def edit_task(self): # Вызывает окно с подробной информацией о задаче
         self.edit_task_widget = TaskWidget(self.parent, self.data)
         self.edit_task_widget.show()
 
-    def get_text(self):
-        self.task.text()
 
-
-class TaskWidget(QMainWindow, editTaskUi):
+class TaskWidget(QMainWindow, editTaskUi): # Окно для добавления и редактирования задачи
     def __init__(self,  parent=None, data=None):
         super().__init__(parent)
         self.setupUi(self)
@@ -407,7 +400,7 @@ class TaskWidget(QMainWindow, editTaskUi):
         self.setFixedSize(429, 505)
         self.way_to_picture = None
 
-        with sqlite3.connect('to_do_list.sqlite') as con:
+        with sqlite3.connect('to_do_list.sqlite') as con: # Заполнение QComboBox категориями
             cur = con.cursor()
             self.category.addItems([i[0] for i in cur.execute('SELECT name FROM categories').fetchall()])
 
@@ -434,12 +427,12 @@ class TaskWidget(QMainWindow, editTaskUi):
 
         self.picture.clicked.connect(self.choose_picture)
 
-    def add_elem(self):
+    def add_elem(self): # Функция, добавляющая задачу
         name = self.name.toPlainText()
         date = self.date.date().toString('dd.MM.yyyy')
         category = self.category.currentText()
 
-        if self.get_adding_verdict():
+        if self.get_verdict():
             with sqlite3.connect('to_do_list.sqlite') as con:
                 cur = con.cursor()
                 if not self.way_to_picture is None:
@@ -457,12 +450,12 @@ class TaskWidget(QMainWindow, editTaskUi):
         else:
             self.statusBar().showMessage('Неверно заполнена форма')
 
-    def edit_elem(self):
+    def edit_elem(self): # Функция, редактирующая задачу
         name = self.name.toPlainText()
         date = self.date.date().toString('dd.MM.yyyy')
         category = self.category.currentIndex()
 
-        if self.get_editing_verdict():
+        if self.get_verdict():
             with sqlite3.connect('to_do_list.sqlite') as con:
                 cur = con.cursor()
                 if not self.way_to_picture is None:
@@ -480,7 +473,7 @@ class TaskWidget(QMainWindow, editTaskUi):
         else:
             self.statusBar().showMessage('Неверно заполнена форма')
 
-    def delete_elem(self):
+    def delete_elem(self): # Функция, удаляющая задачу
         name = self.name.toPlainText()
         date = self.date.date().toString('dd.MM.yyyy')
 
@@ -496,7 +489,7 @@ class TaskWidget(QMainWindow, editTaskUi):
                 self.close()
         self.parent().update_tasks()
 
-    def get_adding_verdict(self):
+    def get_verdict(self): # Возвращает True, если поля с данными заполены правильно, иначе False
         name = self.name.toPlainText()
 
         if name.strip() == '':
@@ -504,15 +497,7 @@ class TaskWidget(QMainWindow, editTaskUi):
 
         return True
 
-    def get_editing_verdict(self):
-        name = self.name.toPlainText()
-
-        if name.strip() == '':
-            return False
-        
-        return True
-
-    def update_pixmap(self, pixmap):
+    def update_pixmap(self, pixmap): # Масштабирует картинку задачи
         scaled_pixmap = pixmap.scaled(
             self.image.size(), 
             Qt.AspectRatioMode.KeepAspectRatio,
@@ -520,24 +505,24 @@ class TaskWidget(QMainWindow, editTaskUi):
         )
         self.image.setPixmap(scaled_pixmap)
 
-    def set_image(self, picture):
+    def set_image(self, picture): # Если у данной задачи есть картинка, то выводит ее
         self.pixmap = QPixmap(QImage(picture))
         self.image.setPixmap(self.pixmap)
         self.update_pixmap(self.pixmap)
 
-    def choose_picture(self):
+    def choose_picture(self): # Вызывает диалоговое окно для получения пути картинки
         picture = QFileDialog.getOpenFileName(self, 'Выбрать картинку', '')[0]
         if picture:
             self.way_to_picture = picture
             self.set_image(self.way_to_picture)
 
-    def get_elem(self):
+    def get_elem(self): # Заполняет окно данными перед редактированием
         self.name.setPlainText(self.data[1])
         self.date.setDate(QDate.fromString(self.data[2], 'dd.MM.yyyy'))
         self.category.setCurrentIndex(int(self.data[4]) - 1)
 
 
-class EventForm(QWidget, eventWidgetUi):
+class EventForm(QWidget, eventWidgetUi): # Форма для отображения события
     def __init__(self, text, time, data, parent=None):
         super().__init__()
         self.parent = parent
@@ -547,12 +532,12 @@ class EventForm(QWidget, eventWidgetUi):
 
         self.eventsMoreInfoButton.clicked.connect(self.edit_event)
 
-    def edit_event(self):
+    def edit_event(self): # Вызывает окно с подробной информацией о событии
         self.edit_event_widget = EventWidget(self.parent, self.data)
         self.edit_event_widget.show()
 
 
-class EventsDate(QWidget, eventsDateUi):
+class EventsDate(QWidget, eventsDateUi): # Форма для отображения даты события
     def __init__(self, date, parent=None):
         super().__init__()
         self.parent = parent
@@ -561,14 +546,14 @@ class EventsDate(QWidget, eventsDateUi):
         self.label.setStyleSheet("color: black; font-size: 18px; font-weight: bold;")
 
 
-class EventWidget(QMainWindow, editEventUi):
+class EventWidget(QMainWindow, editEventUi): # Окно для добавления и редактирования события
     def __init__(self, parent=None, data=None):
         super().__init__(parent)
         self.setupUi(self)
         self.setWindowTitle('Событие')
         self.setFixedSize(415, 269)
 
-        with sqlite3.connect('to_do_list.sqlite') as con:
+        with sqlite3.connect('to_do_list.sqlite') as con: # Заполнение QComboBox категориями
             cur = con.cursor()
             self.category.addItems([i[0] for i in cur.execute('SELECT name FROM categories').fetchall()])
 
@@ -583,13 +568,13 @@ class EventWidget(QMainWindow, editEventUi):
             self.editEventButton.clicked.connect(self.add_elem)
             self.deleteEventButton.clicked.connect(self.close)
     
-    def add_elem(self):
+    def add_elem(self): # Функция, добавляющая событие
         name = self.name.toPlainText()
         date = self.date.date().toString('dd.MM.yyyy')
         time = self.time.toPlainText()
         category = self.category.currentText()
 
-        if self.get_adding_verdict():
+        if self.get_verdict():
             with sqlite3.connect('to_do_list.sqlite') as con:
                 cur = con.cursor()
                 query = f'''INSERT INTO events(name, date, time, category)
@@ -602,13 +587,13 @@ class EventWidget(QMainWindow, editEventUi):
         else:
             self.statusBar().showMessage('Неверно заполнена форма')
 
-    def edit_elem(self):
+    def edit_elem(self): # Функция, редактирующая событие
         name = self.name.toPlainText()
         date = self.date.date().toString('dd.MM.yyyy')
         time = self.time.toPlainText()
         category = self.category.currentIndex()
 
-        if self.get_adding_verdict():
+        if self.get_verdict():
             with sqlite3.connect('to_do_list.sqlite') as con:
                 cur = con.cursor()
                 query = f'''UPDATE events
@@ -621,7 +606,7 @@ class EventWidget(QMainWindow, editEventUi):
         else:
             self.statusBar().showMessage('Неверно заполнена форма')
 
-    def get_adding_verdict(self):
+    def get_verdict(self): # Возвращает True, если поля с данными заполены правильно, иначе False
         name = self.name.toPlainText()
         time = self.time.toPlainText()
 
@@ -640,26 +625,7 @@ class EventWidget(QMainWindow, editEventUi):
 
         return True
 
-    def get_editing_verdict(self):
-        name = self.name.toPlainText()
-        time = self.time.toPlainText()
-
-        if not name.strip():
-            return False
-        pattern = r'^\d\d:\d\d-\d\d:\d\d'
-        match = re.fullmatch(pattern, time)
-
-        if not match:
-            return False
-
-        h1, m1, h2, m2 = [int(time[i:i + 2]) for i in range(0, len(time), 3)]
-
-        if not (0 <= h1 < 24 and 0 <= m1 < 60 and 0 <= h2 < 24 and 0 <= m2 < 60):
-            return False
-
-        return True
-
-    def delete_elem(self):
+    def delete_elem(self): # Функция, удаляющая событие
         name = self.name.toPlainText()
         date = self.date.date().toString('dd.MM.yyyy')
         time = self.time.toPlainText()
@@ -676,7 +642,7 @@ class EventWidget(QMainWindow, editEventUi):
                 self.close()
         self.parent().update_events()
 
-    def get_elem(self):
+    def get_elem(self): # Заполняет окно данными перед редактированием
         self.name.setPlainText(self.data[1])
         self.date.setDate(QDate.fromString(self.data[2], 'dd.MM.yyyy'))
         self.time.setPlainText(self.data[3])
