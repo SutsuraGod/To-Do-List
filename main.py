@@ -266,7 +266,7 @@ class Categories(QMainWindow, categoriesWindowUi): # Окно со списко�
                         self.update_result()
                         self.parent().update_combobox()
             else:
-                self.statusBar().showMessage('К этой категории прикреплены неудаленные задачи')
+                self.statusBar().showMessage('К этой категории прикреплены неудаленные задачи или события')
         elif len(rows) > 1:
             self.statusBar().showMessage('Нужно выбрать только один элемент')
         else:
